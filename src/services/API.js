@@ -1,34 +1,67 @@
 import axios from "axios"
 import { saveAs } from "file-saver"
+import credentials from "./../credentials"
+import getToken from "./token"
 
-function API(url) {
+function api() {
+	const {
+		// classRoomUrlRead,
+		classroomUrl,
+		pdfUrl,
+		validateTokenUrl,
+		baseURL
+	} = credentials.prod
+
+	const isValidToken = async () => {
+		try {
+			const token = await getToken()
+			axios.defaults.headers.Authorization = "bearer " + token
+			axios.defaults.baseURL = baseURL
+			const response = await axios.post(validateTokenUrl)
+			return response.data.isValid
+		} catch (error) {}
+	}
+
 	const get = async () => {
-		const response = await axios["get"](url)
-		return response.data
+		try {
+			const response = await axios.get(classroomUrl)
+			return response.data.result
+		} catch (error) {
+			return new Error(error)
+		}
 	}
 
 	const remove = async classroom => {
-		await axios["delete"](`${url}/${classroom.id}`)
+		try {
+			await axios.delete(`${classroomUrl}/${classroom.id}`)
+		} catch (error) {
+			return new Error(error)
+		}
 	}
 
-	const save = async classroomParam => {
-		const classroom = classroomParam
+	const save = async classroom => {
 		const method = classroom.id ? "put" : "post"
-		const finalUrl = classroom.id ? `${url}/${classroom.id}` : url
-		const response = await axios[method](finalUrl, classroom)
-		return response
+		const finalUrl = classroom.id
+			? `${classroomUrl}/${classroom.id}`
+			: classroomUrl
+		try {
+			const response = await axios[method](finalUrl, classroom)
+			return classroom.id ? classroom : response.data.classroom[0]
+		} catch (error) {
+			return new Error(error)
+		}
 	}
 
 	const fetchAndGetList = async list => {
 		try {
-			await axios.post("http://localhost:3002/fetch-list", { data: list })
-			const response = await axios.get("http://localhost:3002/get-list", {
+			await axios.post(pdfUrl, { data: list })
+			const response = await axios.get(pdfUrl, {
 				responseType: "blob"
 			})
 			const listBlob = new Blob([response.data], { type: "application/pdf" })
 			saveAs(listBlob, "list.pdf")
 		} catch (error) {
-			throw new Error(error)
+			return new Error(error)
 		}
 	}
 
@@ -36,9 +69,10 @@ function API(url) {
 		get,
 		save,
 		remove,
-		url,
-		fetchAndGetList
+		classroomUrl,
+		fetchAndGetList,
+		isValidToken
 	}
 }
 
-export default API
+export default api

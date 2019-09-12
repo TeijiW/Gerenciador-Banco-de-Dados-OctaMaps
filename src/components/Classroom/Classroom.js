@@ -1,14 +1,13 @@
 import React, { Component } from "react"
 import ReactDOMServer from "react-dom/server"
 import Fuse from "fuse.js"
-import credentials from "../../credentials/credentials"
 import Main from "../templates/Main"
 import API from "../../services/API"
 import Form from "./Form"
 import Table from "./Table"
 import Filter from "./Filter"
 import TableOptions from "./TableOptions"
-const api = API(credentials.env.classroomURL)
+const api = API()
 
 const headerProps = {
 	icon: "book",
@@ -22,7 +21,8 @@ const initialState = {
 		titulo_bloco: "Bloco A",
 		numero_piso: "0",
 		codigo_sala: "",
-		titulo_sala: ""
+		titulo_sala: "",
+		titulo_campus: "Octayde Jorge Da Silva"
 	},
 	initialList: [],
 	list: [],
@@ -113,9 +113,12 @@ export default class Classroom extends Component {
 		const { classroom } = this.state
 		if (this.state.errors.length < 1) {
 			try {
+				if (classroom.numero_piso)
+					classroom.numero_piso = String(classroom.numero_piso)
 				classroom.codigo_sala = this.codigoSalaHandling(classroom, "join")
 				const response = await api.save(classroom)
-				const list = this.getUpdatedList(response.data)
+
+				const list = this.getUpdatedList(classroom.id ? classroom : response)
 				this.setState({
 					list,
 					classroom: initialState.classroom,
@@ -123,7 +126,7 @@ export default class Classroom extends Component {
 				})
 				this.formToggle()
 			} catch (error) {
-				throw new Error(error)
+				return new Error(error)
 			}
 		}
 	}
@@ -141,7 +144,7 @@ export default class Classroom extends Component {
 			const list = this.state.list.filter(element => element !== classroom)
 			this.setState({ list })
 		} catch (error) {
-			throw new Error(error)
+			return new Error(error)
 		}
 	}
 
@@ -246,9 +249,15 @@ export default class Classroom extends Component {
 	}
 
 	getUpdatedList = classroom => {
-		const list = this.state.list.filter(el => el.id !== classroom.id)
-		list.unshift(classroom)
-		return list
+		try {
+			const list = this.state.list.filter(el => {
+				return el.id !== classroom.id
+			})
+			list.unshift(classroom)
+			return list
+		} catch (error) {
+			throw error
+		}
 	}
 
 	updateSearchQuery = event => {
